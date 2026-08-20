@@ -112,3 +112,11 @@ temp/
 client/public/__manus__/version.json
 .project-config.json
 .piper-voices/
+
+# Android local configuration and generated build products
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.keystore
+*.jks

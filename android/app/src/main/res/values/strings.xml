@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">TrailTrek</string>
+    <string name="title_activity_main">TrailTrek</string>
+    <string name="package_name">com.hungryalienworms.trailtrek</string>
+    <string name="custom_url_scheme">com.hungryalienworms.trailtrek</string>
+</resources>

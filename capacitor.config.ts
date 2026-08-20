@@ -1,0 +1,16 @@
+import type { CapacitorConfig } from "@capacitor/cli";
+
+const config: CapacitorConfig = {
+  appId: "com.hungryalienworms.trailtrek",
+  appName: "TrailTrek",
+  webDir: "dist/public",
+  bundledWebRuntime: false,
+  server: {
+    androidScheme: "https",
+  },
+  android: {
+    allowMixedContent: false,
+  },
+};
+
+export default config;
