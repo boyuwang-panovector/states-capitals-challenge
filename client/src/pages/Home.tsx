@@ -3,8 +3,9 @@
  * Trail Orange achievements, and opt-in, low-volume sound cues for young geography explorers.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ComposableMap, Geographies, Geography } from "react-simple-maps";
-import { geoCentroid } from "d3-geo";
+import { geoAlbersUsa, geoPath } from "d3-geo";
+import { feature as topologyFeature } from "topojson-client";
+import { stateDiscovery } from "@/data/stateDiscovery";
 import {
   ArrowLeft,
   ArrowRight,
@@ -135,8 +136,9 @@ function normalize(value: string) {
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(iso));
 }
-const compactMapLabels = new Set(["Connecticut", "Delaware", "Maryland", "Massachusetts", "New Hampshire", "New Jersey", "Rhode Island", "Vermont"]);
-const stateByName = new Map(states.map((item) => [item.state, item]));
+const stateByFips = new Map(stateDiscovery.map((item) => [item.fips, item]));
+const compactMapStateLabels = new Set(["Connecticut", "Delaware", "Hawaii", "Maryland", "Massachusetts", "New Hampshire", "New Jersey", "Rhode Island", "Vermont"]);
+
 function useTrailAudio() {
   const contextRef = useRef<AudioContext | null>(null);
   const loopRef = useRef<number | null>(null);
@@ -203,40 +205,94 @@ function useTrailAudio() {
   };
 }
 function MapBoard({ active, onSelect, onTap }: { active: StateData; onSelect?: (item: StateData) => void; onTap?: () => void }) {
+  const [stateShapes, setStateShapes] = useState<any[]>([]);
+  const mapProjection = useMemo(() => geoAlbersUsa().scale(1300).translate([487.5, 305]), []);
+  const statePath = useMemo(() => geoPath(mapProjection), [mapProjection]);
+  const selectState = useCallback((item: (typeof stateDiscovery)[number]) => {
+    const matchingState = states.find((entry) => entry.state === item.state);
+    onTap?.();
+    if (matchingState) onSelect?.(matchingState);
+  }, [onSelect, onTap]);
+
+  useEffect(() => {
+    let isCurrent = true;
+    fetch("/maps/us-states-10m.json")
+      .then((response) => response.json())
+      .then((topology) => {
+        const collection = topologyFeature(topology as any, topology.objects.states as any) as any;
+        if (isCurrent) setStateShapes(collection.features.filter((shape: any) => stateByFips.has(String(shape.id).padStart(2, "0"))));
+      })
+      .catch(() => { if (isCurrent) setStateShapes([]); });
+    return () => { isCurrent = false; };
+  }, []);
+
   return (
-    <div className="map-board" aria-label="Accurate interactive map of the United States">
-      <div className="map-legend">ACCURATE U.S. MAP</div>
-      <ComposableMap className="us-geography" projection="geoAlbersUsa" projectionConfig={{ scale: 830 }}>
-        <Geographies geography="/maps/us-states.json">
-          {({ geographies }: { geographies: any[] }) => geographies.map((geo: any) => {
-            const item = stateByName.get(String(geo.properties.name));
-            if (!item) return null;
-            const [x, y] = geoCentroid(geo);
+    <div className="map-board" aria-label="Interactive U.S. state map with state capital markers">
+      <div className="map-legend">U.S. ATLAS · TAP A STATE</div>
+      <svg className="us-geography" viewBox="0 0 975 610" role="img" aria-label="Accurate interactive map of the 50 United States">
+        {stateShapes.map((shape) => {
+          const item = stateByFips.get(String(shape.id).padStart(2, "0"));
+          if (!item) return null;
+          const isActive = item.state === active.state;
+          const labelPoint = statePath.centroid(shape);
+          const displayLabel = compactMapStateLabels.has(item.state) ? item.code : item.state;
+          return (
+            <g className={`us-state-group ${isActive ? "is-active" : ""}`} key={item.fips}>
+              <path
+                aria-label={`${item.state}, capital ${item.capital}`}
+                aria-pressed={isActive}
+                d={statePath(shape) ?? ""}
+                onClick={() => selectState(item)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    selectState(item);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+              />
+              {Number.isFinite(labelPoint[0]) && Number.isFinite(labelPoint[1]) && <text aria-hidden="true" className={`map-state-name ${compactMapStateLabels.has(item.state) ? "is-compact" : ""}`} x={labelPoint[0]} y={labelPoint[1]}>{displayLabel}</text>}
+              <title>{`${item.state} — ${item.capital}`}</title>
+            </g>
+          );
+        })}
+        <g className="capital-marker-layer" aria-hidden="true">
+          {stateDiscovery.map((item) => {
+            const point = mapProjection([item.longitude, item.latitude]);
+            if (!point) return null;
             const isActive = item.state === active.state;
-            const label = compactMapLabels.has(item.state) ? item.code : item.state;
-            return (
-              <g className={`us-state-group ${isActive ? "is-active" : ""}`} key={geo.rsmKey}>
-                <Geography
-                  aria-label={`${item.state}, capital ${item.capital}`}
-                  geography={geo}
-                  onClick={() => { onTap?.(); onSelect?.(item); }}
-                  role="button"
-                  style={{ default: {}, hover: {}, pressed: {} }}
-                  tabIndex={0}
-                />
-                <text aria-hidden="true" className="us-state-label" x={x} y={y}>{label}</text>
-                <title>{`${item.state} — ${item.capital}`}</title>
-              </g>
-            );
+            return <g className={`capital-marker ${isActive ? "is-active" : ""}`} key={item.code} transform={`translate(${point[0]},${point[1]})`}><circle r={isActive ? 6.5 : 4.5} /><text y={isActive ? -11 : -8}>{item.code}</text></g>;
           })}
-        </Geographies>
-      </ComposableMap>
+        </g>
+      </svg>
       <div className="map-focus-card">
         <MapPinned size={15} />
         <span>{active.state}</span>
         <strong>{active.capital}</strong>
       </div>
+      <div className="map-source-note">Borders: U.S. Census via us-atlas · Capital coordinates: xFront</div>
+      {stateShapes.length === 0 && <div className="map-loading">Loading verified state boundaries…</div>}
     </div>
+  );
+}
+
+function StateDiscoveryCard({ item }: { item: StateData }) {
+  const discovery = stateDiscovery.find((entry) => entry.state === item.state);
+  if (!discovery) return null;
+  return (
+    <article className="state-discovery-card" aria-label={`${item.state} discovery details`}>
+      <figure className="landmark-photo">
+        <img alt={`${discovery.landmark} in ${item.state}`} loading="lazy" onError={(event) => { event.currentTarget.style.display = "none"; }} src={discovery.imageUrl} />
+        <figcaption><a href={discovery.imagePageUrl} rel="noreferrer" target="_blank">{discovery.landmark} photo</a> · {discovery.imageCredit}</figcaption>
+      </figure>
+      <div className="discovery-copy">
+        <span className="discovery-kicker">LANDMARK · {discovery.landmark}</span>
+        <p><strong>Did you know?</strong> {discovery.stateFact}</p>
+        <p><strong>History trail:</strong> {discovery.historyFact}</p>
+        <a className="fact-source-link" href={discovery.factSourceUrl} rel="noreferrer" target="_blank">Read the source <ChevronRight size={14} /></a>
+      </div>
+    </article>
   );
 }
 
@@ -433,6 +489,7 @@ export default function Home() {
                       <div className="capital-label"><span>CAPITAL CITY</span><strong>{selectedState.capital}</strong></div>
                     </div>
                   </div>
+                  <StateDiscoveryCard item={selectedState} />
                   <div className="study-controls">
                     <button className="round-control" aria-label="Previous state" onClick={() => { trailAudio.click(); setSelectedState(states[(studyIndex + states.length - 1) % states.length]); }} type="button"><ArrowLeft size={19} /></button>
                     <button className="study-next" onClick={() => { trailAudio.click(); setSelectedState(states[(studyIndex + 1) % states.length]); }} type="button">Next state <ArrowRight size={18} /></button>
