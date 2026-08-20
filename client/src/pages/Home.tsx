@@ -1,8 +1,10 @@
 /**
- * Atlas Adventure Club design: a parchment expedition desk, navy map ink, Trail Orange achievements,
- * asymmetrical map-and-learning layout, and short tactile feedback for young geography explorers.
+ * Atlas Adventure Club design: a parchment expedition desk, an accurate geographic U.S. map, navy map ink,
+ * Trail Orange achievements, and opt-in, low-volume sound cues for young geography explorers.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ComposableMap, Geographies, Geography } from "react-simple-maps";
+import { geoCentroid } from "d3-geo";
 import {
   ArrowLeft,
   ArrowRight,
@@ -18,6 +20,8 @@ import {
   Sparkles,
   Star,
   Trophy,
+  Volume2,
+  VolumeX,
   X,
 } from "lucide-react";
 
@@ -131,33 +135,102 @@ function normalize(value: string) {
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(iso));
 }
-
-function MapBoard({ active, onSelect }: { active: StateData; onSelect?: (item: StateData) => void }) {
+const compactMapLabels = new Set(["Connecticut", "Delaware", "Maryland", "Massachusetts", "New Hampshire", "New Jersey", "Rhode Island", "Vermont"]);
+const stateByName = new Map(states.map((item) => [item.state, item]));
+function useTrailAudio() {
+  const contextRef = useRef<AudioContext | null>(null);
+  const loopRef = useRef<number | null>(null);
+  const musicStepRef = useRef(0);
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const getContext = useCallback(() => {
+    if (typeof window === "undefined" || !window.AudioContext) return null;
+    if (!contextRef.current) contextRef.current = new window.AudioContext();
+    if (contextRef.current.state === "suspended") void contextRef.current.resume();
+    return contextRef.current;
+  }, []);
+  const playTone = useCallback((frequency: number, duration: number, tone: OscillatorType, volume: number, delay = 0) => {
+    const context = getContext();
+    if (!context) return;
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    const startAt = context.currentTime + delay;
+    oscillator.type = tone;
+    oscillator.frequency.setValueAtTime(frequency, startAt);
+    gain.gain.setValueAtTime(0.0001, startAt);
+    gain.gain.exponentialRampToValueAtTime(volume, startAt + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
+    oscillator.connect(gain).connect(context.destination);
+    oscillator.start(startAt);
+    oscillator.stop(startAt + duration + 0.03);
+  }, [getContext]);
+  const stopMusic = useCallback(() => {
+    if (loopRef.current !== null) window.clearInterval(loopRef.current);
+    loopRef.current = null;
+    setSoundEnabled(false);
+  }, []);
+  const startMusic = useCallback(() => {
+    getContext();
+    musicStepRef.current = 0;
+    const notes = [261.63, 329.63, 392, 329.63, 293.66, 349.23, 440, 349.23];
+    const playStep = () => {
+      const step = musicStepRef.current % notes.length;
+      playTone(notes[step], 0.32, "sine", 0.022);
+      if (step % 4 === 0) playTone(notes[step] / 2, 0.28, "triangle", 0.012, 0.02);
+      musicStepRef.current += 1;
+    };
+    playStep();
+    loopRef.current = window.setInterval(playStep, 490);
+    setSoundEnabled(true);
+  }, [getContext, playTone]);
+  useEffect(() => () => {
+    if (loopRef.current !== null) window.clearInterval(loopRef.current);
+    void contextRef.current?.close();
+  }, []);
+  return {
+    soundEnabled,
+    toggleSound: () => (soundEnabled ? stopMusic() : startMusic()),
+    click: () => { if (soundEnabled) playTone(523.25, 0.08, "sine", 0.05); },
+    answer: (correct: boolean) => {
+      if (!soundEnabled) return;
+      if (correct) {
+        playTone(523.25, 0.12, "sine", 0.06);
+        playTone(659.25, 0.18, "sine", 0.06, 0.1);
+      } else {
+        playTone(220, 0.16, "triangle", 0.045);
+        playTone(185, 0.2, "triangle", 0.04, 0.1);
+      }
+    },
+  };
+}
+function MapBoard({ active, onSelect, onTap }: { active: StateData; onSelect?: (item: StateData) => void; onTap?: () => void }) {
   return (
-    <div className="map-board" aria-label="Illustrated U.S. state locator map">
-      <div className="map-grid map-grid-one" />
-      <div className="map-grid map-grid-two" />
-      <div className="map-caption map-caption-west">PACIFIC</div>
-      <div className="map-caption map-caption-east">ATLANTIC</div>
-      <div className="map-legend">LOCATOR MAP</div>
-      <div className="map-outline map-outline-main" />
-      <div className="map-outline map-outline-alaska" />
-      <div className="map-outline map-outline-hawaii" />
-      {states.map((item) => {
-        const isActive = item.state === active.state;
-        return (
-          <button
-            aria-label={`${item.state}, ${item.capital}`}
-            className={`state-pin ${isActive ? "is-active" : ""}`}
-            key={item.code}
-            onClick={() => onSelect?.(item)}
-            style={{ left: `${item.x}%`, top: `${item.y}%` }}
-            type="button"
-          >
-            {item.code}
-          </button>
-        );
-      })}
+    <div className="map-board" aria-label="Accurate interactive map of the United States">
+      <div className="map-legend">ACCURATE U.S. MAP</div>
+      <ComposableMap className="us-geography" projection="geoAlbersUsa" projectionConfig={{ scale: 830 }}>
+        <Geographies geography="/maps/us-states.json">
+          {({ geographies }: { geographies: any[] }) => geographies.map((geo: any) => {
+            const item = stateByName.get(String(geo.properties.name));
+            if (!item) return null;
+            const [x, y] = geoCentroid(geo);
+            const isActive = item.state === active.state;
+            const label = compactMapLabels.has(item.state) ? item.code : item.state;
+            return (
+              <g className={`us-state-group ${isActive ? "is-active" : ""}`} key={geo.rsmKey}>
+                <Geography
+                  aria-label={`${item.state}, capital ${item.capital}`}
+                  geography={geo}
+                  onClick={() => { onTap?.(); onSelect?.(item); }}
+                  role="button"
+                  style={{ default: {}, hover: {}, pressed: {} }}
+                  tabIndex={0}
+                />
+                <text aria-hidden="true" className="us-state-label" x={x} y={y}>{label}</text>
+                <title>{`${item.state} — ${item.capital}`}</title>
+              </g>
+            );
+          })}
+        </Geographies>
+      </ComposableMap>
       <div className="map-focus-card">
         <MapPinned size={15} />
         <span>{active.state}</span>
@@ -197,6 +270,7 @@ function StagePath({ active, onSelect }: { active: Stage; onSelect: (stage: Stag
 }
 
 export default function Home() {
+  const trailAudio = useTrailAudio();
   const [stage, setStage] = useState<Stage>("study");
   const [selectedState, setSelectedState] = useState<StateData>(states[4]);
   const [quiz, setQuiz] = useState<QuizQuestion[]>([]);
@@ -237,6 +311,7 @@ export default function Home() {
   );
 
   const startTest = (testStage: TestStage) => {
+    trailAudio.click();
     const nextQuiz = makeTest(testStage);
     setStage(testStage);
     setQuiz(nextQuiz);
@@ -249,6 +324,7 @@ export default function Home() {
   };
 
   const chooseStage = (nextStage: Stage) => {
+    trailAudio.click();
     setStage(nextStage);
     setSubmitted(false);
     setIsCorrect(null);
@@ -263,6 +339,7 @@ export default function Home() {
     setAnswer(chosen);
     setSubmitted(true);
     setIsCorrect(correct);
+    trailAudio.answer(correct);
     if (correct) setScore((value) => value + 1);
   };
 
@@ -307,6 +384,9 @@ export default function Home() {
           <span><strong>TrailTrek</strong><small>STATES &amp; CAPITALS</small></span>
         </a>
         <div className="topbar-note"><Compass size={16} /> <span>Learn it. Pin it. Own it.</span></div>
+        <button aria-label={trailAudio.soundEnabled ? "Mute TrailTrek sounds" : "Turn on TrailTrek sounds"} aria-pressed={trailAudio.soundEnabled} className="sound-toggle" onClick={trailAudio.toggleSound} type="button">
+          {trailAudio.soundEnabled ? <Volume2 size={17} /> : <VolumeX size={17} />}<span>{trailAudio.soundEnabled ? "Sound on" : "Sound off"}</span>
+        </button>
         <a className="leaderboard-link" href="#leaderboard"><Trophy size={16} /> Trail Board</a>
       </header>
 
@@ -337,8 +417,8 @@ export default function Home() {
           <div className="learning-desk">
             <aside className="locator-panel">
               <div className="locator-header"><span><MapPinned size={17} /> LIVE LOCATION</span><small>tap a pin</small></div>
-              <MapBoard active={focusState} onSelect={(item) => { setSelectedState(item); if (stage === "study") setQuiz([]); }} />
-              <div className="map-tip"><Sparkles size={15} /><span>Every pin is a state. Find the orange one!</span></div>
+              <MapBoard active={focusState} onSelect={(item) => { setSelectedState(item); if (stage === "study") setQuiz([]); }} onTap={trailAudio.click} />
+              <div className="map-tip"><Sparkles size={15} /><span>Tap a real state shape. The highlighted state is orange.</span></div>
             </aside>
 
             <section className="task-panel">
@@ -354,8 +434,8 @@ export default function Home() {
                     </div>
                   </div>
                   <div className="study-controls">
-                    <button className="round-control" aria-label="Previous state" onClick={() => setSelectedState(states[(studyIndex + states.length - 1) % states.length])} type="button"><ArrowLeft size={19} /></button>
-                    <button className="study-next" onClick={() => setSelectedState(states[(studyIndex + 1) % states.length])} type="button">Next state <ArrowRight size={18} /></button>
+                    <button className="round-control" aria-label="Previous state" onClick={() => { trailAudio.click(); setSelectedState(states[(studyIndex + states.length - 1) % states.length]); }} type="button"><ArrowLeft size={19} /></button>
+                    <button className="study-next" onClick={() => { trailAudio.click(); setSelectedState(states[(studyIndex + 1) % states.length]); }} type="button">Next state <ArrowRight size={18} /></button>
                   </div>
                   <div className="knowledge-strip"><span><BookOpen size={16} /> TIP</span><p>Say the state and capital together twice. Your brain loves a matching pair!</p></div>
                   <div className="test-ready-card">
