@@ -388,6 +388,15 @@ export default function Home() {
     if (nextStage === "study") setQuiz([]);
   };
 
+  const openStudyMap = () => {
+    chooseStage("study");
+    window.requestAnimationFrame(() => {
+      const mapTarget = document.getElementById("study-map");
+      mapTarget?.scrollIntoView({ behavior: "smooth", block: "start" });
+      mapTarget?.focus({ preventScroll: true });
+    });
+  };
+
   const checkAnswer = (chosen: string) => {
     if (!currentQuestion || submitted) return;
     const expected = stage === "multiple" ? currentQuestion.item.capital : currentQuestion.item.state;
@@ -453,7 +462,7 @@ export default function Home() {
             <h1>Pin the capital.<br /><em>Claim the trail.</em></h1>
             <p>Explore every state, find it on the map, then race through a 20-question challenge.</p>
             <div className="hero-actions">
-              <button className="btn-primary" onClick={() => chooseStage("study")} type="button"><MapPinned size={18} /> Explore the map <ArrowRight size={18} /></button>
+              <button aria-label="Explore the interactive U.S. state map" className="btn-primary" onClick={openStudyMap} type="button"><MapPinned size={18} /> Explore the map <ArrowRight size={18} /></button>
               <a className="text-action" href="#leaderboard">See the trail board <ChevronRight size={16} /></a>
             </div>
           </div>
@@ -470,7 +479,7 @@ export default function Home() {
           </div>
           <StagePath active={stage} onSelect={chooseStage} />
 
-          <div className="learning-desk">
+          <div className="learning-desk" id="study-map" tabIndex={-1}>
             <aside className="locator-panel">
               <div className="locator-header"><span><MapPinned size={17} /> LIVE LOCATION</span><small>tap a pin</small></div>
               <MapBoard active={focusState} onSelect={(item) => { setSelectedState(item); if (stage === "study") setQuiz([]); }} onTap={trailAudio.click} />
