@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { geoAlbersUsa, geoPath } from "d3-geo";
 import { feature as topologyFeature } from "topojson-client";
 import { stateDiscovery } from "@/data/stateDiscovery";
+import { pronunciationByCode } from "@/data/pronunciations";
 import {
   ArrowLeft,
   ArrowRight,
@@ -326,6 +327,7 @@ function StagePath({ active, onSelect }: { active: Stage; onSelect: (stage: Stag
 
 export default function Home() {
   const trailAudio = useTrailAudio();
+  const pronunciationRef = useRef<HTMLAudioElement | null>(null);
   const [stage, setStage] = useState<Stage>("study");
   const [selectedState, setSelectedState] = useState<StateData>(states[4]);
   const [quiz, setQuiz] = useState<QuizQuestion[]>([]);
@@ -338,6 +340,21 @@ export default function Home() {
   const [playerName, setPlayerName] = useState("");
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [historyFilter, setHistoryFilter] = useState<"all" | TestStage>("all");
+  const speakPronunciation = useCallback((kind: "state" | "capital") => {
+    const guide = pronunciationByCode[selectedState.code];
+    if (!guide) return;
+    const clip = pronunciationRef.current ?? new Audio();
+    pronunciationRef.current = clip;
+    const music = trailAudio.musicRef.current;
+    const shouldResumeMusic = Boolean(trailAudio.soundEnabled && music && !music.paused);
+    if (shouldResumeMusic) music?.pause();
+    clip.onended = () => {
+      if (shouldResumeMusic && music) void music.play().catch(() => undefined);
+    };
+    clip.src = `/assets/pronunciation/${selectedState.code.toLowerCase()}-${kind}.mp3`;
+    clip.currentTime = 0;
+    void clip.play().catch(() => undefined);
+  }, [selectedState.code, trailAudio.musicRef, trailAudio.soundEnabled]);
 
   useEffect(() => {
     try {
@@ -444,7 +461,6 @@ export default function Home() {
     <div className="min-h-screen app-shell">
       <header className="topbar">
         <a className="brand-lockup" href="#top" aria-label="TrailTrek home">
-          <img alt="Hungry Alien Worms learning mascot" className="brand-mark" src="/assets/hungry-alien-worms-mascot-crop.png" />
           <span><strong>TrailTrek</strong><small>STATES &amp; CAPITALS</small></span>
         </a>
         <div className="topbar-note"><Compass size={16} /> <span>Learn it. Pin it. Remember it.</span></div>
@@ -466,11 +482,7 @@ export default function Home() {
               <a className="text-action" href="#leaderboard">See the trail board <ChevronRight size={16} /></a>
             </div>
           </div>
-          <div className="hero-art" aria-hidden="true">
-            <img alt="" className="hero-art-fallback" src="/assets/hungry-alien-worms-mascot-crop.png" />
-            <img alt="" className="hero-art-animation" src="/assets/hungry-alien-worms.gif" />
-            <div className="hero-stamp"><Star fill="currentColor" size={14} /> 50 STATES<br />1 BIG BITE</div>
-          </div>
+          <div className="hero-constellation" aria-hidden="true"><div className="hero-stamp"><Star fill="currentColor" size={14} /> 50 STATES<br />1 BIG BITE</div></div>
         </section>
 
         <section className="expedition-section" aria-label="States and capitals learning expedition">
@@ -495,8 +507,19 @@ export default function Home() {
                     <div className="study-orbit"><span>STATE</span><strong>{selectedState.code}</strong></div>
                     <div className="study-details">
                       <p>YOU ARE EXPLORING</p>
-                      <h3>{selectedState.state}</h3>
-                      <div className="capital-label"><span>CAPITAL CITY</span><strong>{selectedState.capital}</strong></div>
+                      <div className="word-with-speech">
+                        <h3>{selectedState.state}</h3>
+                        <button className="speak-control" aria-label={`Hear ${selectedState.state} pronounced`} onClick={() => speakPronunciation("state")} type="button"><Volume2 size={17} /></button>
+                      </div>
+                      <span className="pronunciation-label">Say: {pronunciationByCode[selectedState.code]?.state ?? selectedState.state}</span>
+                      <div className="capital-label">
+                        <span>CAPITAL CITY</span>
+                        <div className="word-with-speech">
+                          <strong>{selectedState.capital}</strong>
+                          <button className="speak-control" aria-label={`Hear ${selectedState.capital} pronounced`} onClick={() => speakPronunciation("capital")} type="button"><Volume2 size={17} /></button>
+                        </div>
+                        <small className="pronunciation-label">Say: {pronunciationByCode[selectedState.code]?.capital ?? selectedState.capital}</small>
+                      </div>
                     </div>
                   </div>
                   <StateDiscoveryCard item={selectedState} />
@@ -579,7 +602,7 @@ export default function Home() {
         </section>
       </main>
 
-      <footer><div><img alt="Hungry Alien Worms mascot" src="/assets/hungry-alien-worms-mascot-crop.png" /><span>TrailTrek <small>STATES &amp; CAPITALS</small></span></div><p>One state at a time. One big map in your mind.<br />A learning game by Hungry Alien Worms LLC.</p></footer>
+      <footer><div><span>TrailTrek <small>STATES &amp; CAPITALS</small></span><p>One state at a time. One big map in your mind.<br />A learning game by Hungry Alien Worms LLC.</p></div><video className="footer-mascot" aria-label="Animated Hungry Alien Worms logo" autoPlay loop muted playsInline preload="metadata"><source src="/assets/hungry-alien-worms-footer.mp4" type="video/mp4" /></video></footer>
 
       {pendingResult && (
         <div className="result-overlay" role="dialog" aria-modal="true" aria-labelledby="result-title">

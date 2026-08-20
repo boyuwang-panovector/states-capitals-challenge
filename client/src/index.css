@@ -115,3 +115,20 @@ footer { background: #0e2d1d; color: #9fe0bd; }.footer img, footer img { width: 
 .hero-art .hero-art-animation { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; padding: 16px; object-fit: contain; mix-blend-mode: multiply; }
 .hero-art .hero-stamp { z-index: 2; }
 @media (max-width: 620px) { .hero-art .hero-art-fallback, .hero-art .hero-art-animation { padding: 8px; } }
+
+/* Single approved mascot location: large animated footer logo only. */
+.hero-section { grid-template-columns: 1fr !important; min-height: 540px; }
+.hero-constellation { position: absolute; inset: 0 0 0 auto; width: 42%; pointer-events: none; background: radial-gradient(circle at 72% 30%, rgba(255,255,255,.58) 0 2px, transparent 3px), radial-gradient(circle at 42% 68%, rgba(255,107,53,.24) 0 4px, transparent 5px), radial-gradient(circle at 80% 74%, rgba(78,203,141,.28) 0 6px, transparent 7px); background-size: 85px 85px, 130px 130px, 150px 150px; }
+.hero-constellation::before, .hero-constellation::after { content:""; position:absolute; border:2px dashed rgba(45,155,100,.22); border-radius:50%; }.hero-constellation::before { width:280px; height:280px; right:12%; top:18%; }.hero-constellation::after { width:150px; height:150px; right:42%; top:38%; }
+.hero-constellation .hero-stamp { right: 15%; bottom: 23%; }
+footer { position: relative; min-height: 235px; padding-right: 275px; }
+footer .footer-mascot { position: absolute; right: 24px; bottom: 12px; width: 350px; height: 205px; border-radius: 18px; background: #effff7; object-fit: contain; box-shadow: 0 10px 26px rgba(0, 0, 0, .18); }
+
+.word-with-speech { display: flex; align-items: center; gap: .45rem; flex-wrap: wrap; }
+.word-with-speech h3, .word-with-speech strong { margin: 0; }
+.speak-control { width: 2.1rem; height: 2.1rem; border: 2px solid #0f8d7c; border-radius: 50%; display: inline-grid; place-items: center; color: #075f56; background: #e8fff3; transition: transform .16s ease, background .16s ease; }
+.speak-control:hover, .speak-control:focus-visible { background: #b9f5cf; transform: translateY(-1px); }
+.pronunciation-label { display: block; margin-top: .15rem; color: #39736b; font-size: .78rem; font-weight: 800; letter-spacing: .02em; }
+footer > div { display: flex; flex-direction: column; gap: 12px; }
+footer > div p { margin: 0; }
+@media (max-width: 620px) { .hero-section { min-height: 500px; }.hero-constellation { width: 50%; opacity:.72; }.hero-constellation::before { width:190px; height:190px; right:-15%; top:42%; }.hero-constellation::after { width:100px; height:100px; right:28%; top:55%; }.hero-constellation .hero-stamp { right: 10%; bottom: 16%; }.hero-copy { position:relative; z-index:1; }.hero-copy p { max-width: 80%; } footer { min-height: 360px; padding-right: 20px; padding-bottom: 218px; } footer .footer-mascot { right: 12px; bottom: 10px; width: 300px; height: 190px; } }
