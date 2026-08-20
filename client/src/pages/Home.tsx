@@ -1,6 +1,6 @@
 /**
- * Atlas Adventure Club design: a parchment expedition desk, an accurate geographic U.S. map, navy map ink,
- * Trail Orange achievements, and opt-in, low-volume sound cues for young geography explorers.
+ * TrailTrek design: Hungry Alien Worms brings a playful teal, lime, and orange learning companion
+ * to an accurate state atlas, with opt-in low-volume sound cues and retrieval-practice prompts.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { geoAlbersUsa, geoPath } from "d3-geo";
@@ -141,8 +141,7 @@ const compactMapStateLabels = new Set(["Connecticut", "Delaware", "Hawaii", "Mar
 
 function useTrailAudio() {
   const contextRef = useRef<AudioContext | null>(null);
-  const loopRef = useRef<number | null>(null);
-  const musicStepRef = useRef(0);
+  const musicRef = useRef<HTMLAudioElement | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const getContext = useCallback(() => {
     if (typeof window === "undefined" || !window.AudioContext) return null;
@@ -166,40 +165,40 @@ function useTrailAudio() {
     oscillator.stop(startAt + duration + 0.03);
   }, [getContext]);
   const stopMusic = useCallback(() => {
-    if (loopRef.current !== null) window.clearInterval(loopRef.current);
-    loopRef.current = null;
+    if (musicRef.current) {
+      musicRef.current.pause();
+      musicRef.current.currentTime = 0;
+    }
     setSoundEnabled(false);
   }, []);
   const startMusic = useCallback(() => {
     getContext();
-    musicStepRef.current = 0;
-    const notes = [261.63, 329.63, 392, 329.63, 293.66, 349.23, 440, 349.23];
-    const playStep = () => {
-      const step = musicStepRef.current % notes.length;
-      playTone(notes[step], 0.32, "sine", 0.022);
-      if (step % 4 === 0) playTone(notes[step] / 2, 0.28, "triangle", 0.012, 0.02);
-      musicStepRef.current += 1;
+    if (musicRef.current) {
+      musicRef.current.volume = 0.15;
+      void musicRef.current.play().catch(() => {
+        // A browser may defer playback until a later gesture; feedback tones still remain available.
+      });
     };
-    playStep();
-    loopRef.current = window.setInterval(playStep, 490);
     setSoundEnabled(true);
-  }, [getContext, playTone]);
+  }, [getContext]);
   useEffect(() => () => {
-    if (loopRef.current !== null) window.clearInterval(loopRef.current);
+    musicRef.current?.pause();
     void contextRef.current?.close();
   }, []);
   return {
     soundEnabled,
+    musicRef,
     toggleSound: () => (soundEnabled ? stopMusic() : startMusic()),
-    click: () => { if (soundEnabled) playTone(523.25, 0.08, "sine", 0.05); },
+    click: () => { if (soundEnabled) playTone(659.25, 0.06, "sine", 0.035); },
     answer: (correct: boolean) => {
       if (!soundEnabled) return;
       if (correct) {
-        playTone(523.25, 0.12, "sine", 0.06);
-        playTone(659.25, 0.18, "sine", 0.06, 0.1);
+        playTone(523.25, 0.1, "sine", 0.045);
+        playTone(659.25, 0.12, "sine", 0.045, 0.08);
+        playTone(783.99, 0.16, "sine", 0.04, 0.16);
       } else {
-        playTone(220, 0.16, "triangle", 0.045);
-        playTone(185, 0.2, "triangle", 0.04, 0.1);
+        playTone(246.94, 0.1, "triangle", 0.028);
+        playTone(220, 0.14, "triangle", 0.024, 0.08);
       }
     },
   };
@@ -445,45 +444,47 @@ export default function Home() {
     <div className="min-h-screen app-shell">
       <header className="topbar">
         <a className="brand-lockup" href="#top" aria-label="TrailTrek home">
-          <img alt="TrailTrek compass pin logo" className="brand-mark" src="/assets/trailtrek-logo.png" />
+          <img alt="Hungry Alien Worms learning mascot" className="brand-mark" src="/assets/hungry-alien-worms-mascot-crop.png" />
           <span><strong>TrailTrek</strong><small>STATES &amp; CAPITALS</small></span>
         </a>
-        <div className="topbar-note"><Compass size={16} /> <span>Learn it. Pin it. Own it.</span></div>
-        <button aria-label={trailAudio.soundEnabled ? "Mute TrailTrek sounds" : "Turn on TrailTrek sounds"} aria-pressed={trailAudio.soundEnabled} className="sound-toggle" onClick={trailAudio.toggleSound} type="button">
+        <div className="topbar-note"><Compass size={16} /> <span>Learn it. Pin it. Remember it.</span></div>
+        <button aria-label={trailAudio.soundEnabled ? "Mute learning sounds" : "Turn on learning sounds"} aria-pressed={trailAudio.soundEnabled} className="sound-toggle" onClick={trailAudio.toggleSound} type="button">
           {trailAudio.soundEnabled ? <Volume2 size={17} /> : <VolumeX size={17} />}<span>{trailAudio.soundEnabled ? "Sound on" : "Sound off"}</span>
         </button>
         <a className="leaderboard-link" href="#leaderboard"><Trophy size={16} /> Trail Board</a>
       </header>
 
       <main id="top">
+        <audio ref={trailAudio.musicRef} src="/assets/hungry-alien-worms-learning-loop.mp3" loop preload="metadata" />
         <section className="hero-section">
           <div className="hero-copy">
-            <div className="eyebrow"><span /> A GEOGRAPHY EXPEDITION</div>
-            <h1>Pin the capital.<br /><em>Claim the trail.</em></h1>
-            <p>Explore every state, find it on the map, then race through a 20-question challenge.</p>
+            <div className="eyebrow"><span /> A HUNGRY ALIEN WORMS ADVENTURE</div>
+            <h1>Gobble up capitals.<br /><em>Claim the trail.</em></h1>
+            <p>Meet the map, tap a state, and help your brain remember every capital one playful challenge at a time.</p>
             <div className="hero-actions">
               <button aria-label="Explore the interactive U.S. state map" className="btn-primary" onClick={openStudyMap} type="button"><MapPinned size={18} /> Explore the map <ArrowRight size={18} /></button>
               <a className="text-action" href="#leaderboard">See the trail board <ChevronRight size={16} /></a>
             </div>
           </div>
           <div className="hero-art" aria-hidden="true">
-            <img alt="" src="/assets/trailtrek-hero.png" />
-            <div className="hero-stamp"><Star fill="currentColor" size={14} /> 50 STATES<br />1 BIG TRAIL</div>
+            <img alt="" className="hero-art-fallback" src="/assets/hungry-alien-worms-mascot-crop.png" />
+            <img alt="" className="hero-art-animation" src="/assets/hungry-alien-worms.gif" />
+            <div className="hero-stamp"><Star fill="currentColor" size={14} /> 50 STATES<br />1 BIG BITE</div>
           </div>
         </section>
 
         <section className="expedition-section" aria-label="States and capitals learning expedition">
           <div className="section-intro">
             <div><span className="section-kicker">YOUR ROUTE</span><h2>Choose your next<br /><em>trail marker.</em></h2></div>
-            <p>Start with the map, then take both 20-question tests to build your geography superpower.</p>
+            <p>Start with the map, then take both 20-question tests to grow your geography superpower.</p>
           </div>
           <StagePath active={stage} onSelect={chooseStage} />
 
           <div className="learning-desk" id="study-map" tabIndex={-1}>
             <aside className="locator-panel">
-              <div className="locator-header"><span><MapPinned size={17} /> LIVE LOCATION</span><small>tap a pin</small></div>
+              <div className="locator-header"><span><MapPinned size={17} /> WORMHOLE MAP</span><small>tap a state</small></div>
               <MapBoard active={focusState} onSelect={(item) => { setSelectedState(item); if (stage === "study") setQuiz([]); }} onTap={trailAudio.click} />
-              <div className="map-tip"><Sparkles size={15} /><span>Tap a real state shape. The highlighted state is orange.</span></div>
+              <div className="map-tip"><Sparkles size={15} /><span>Tap a real state shape. Orange means it is ready to explore!</span></div>
             </aside>
 
             <section className="task-panel">
@@ -503,7 +504,7 @@ export default function Home() {
                     <button className="round-control" aria-label="Previous state" onClick={() => { trailAudio.click(); setSelectedState(states[(studyIndex + states.length - 1) % states.length]); }} type="button"><ArrowLeft size={19} /></button>
                     <button className="study-next" onClick={() => { trailAudio.click(); setSelectedState(states[(studyIndex + 1) % states.length]); }} type="button">Next state <ArrowRight size={18} /></button>
                   </div>
-                  <div className="knowledge-strip"><span><BookOpen size={16} /> TIP</span><p>Say the state and capital together twice. Your brain loves a matching pair!</p></div>
+                  <div className="knowledge-strip"><span><BookOpen size={16} /> MEMORY BITE</span><p>Say the state and capital, cover it, then recall it after a short pause. Tiny retrievals build stronger memories.</p></div>
                   <div className="test-ready-card">
                     <div><span>READY TO TEST YOURSELF?</span><strong>Try 20 quick picks</strong></div>
                     <button className="btn-outline" onClick={() => startTest("multiple")} type="button">Start stage 2 <ArrowRight size={17} /></button>
@@ -555,7 +556,7 @@ export default function Home() {
                   {submitted && (
                     <div className={`feedback-card ${isCorrect ? "positive" : "retry"}`}>
                       {isCorrect ? <Check size={21} /> : <CircleHelp size={21} />}
-                      <div><strong>{isCorrect ? "Nice navigation!" : "Good try, explorer."}</strong><p>{isCorrect ? "You found the right answer." : `The answer is ${stage === "multiple" ? currentQuestion.item.capital : currentQuestion.item.state}. Remember it for the next trail!`}</p></div>
+                      <div><strong>{isCorrect ? "Alien-approved!" : "Wiggle back and try again!"}</strong><p>{isCorrect ? "You found the right answer. Say it once more to help it stick." : `The answer is ${stage === "multiple" ? currentQuestion.item.capital : currentQuestion.item.state}. Say it aloud, then spot it on the map!`}</p></div>
                       <button onClick={moveForward} type="button">{questionIndex === 19 ? "Finish test" : "Next"} <ArrowRight size={17} /></button>
                     </div>
                   )}
@@ -578,7 +579,7 @@ export default function Home() {
         </section>
       </main>
 
-      <footer><div><img alt="" src="/assets/trailtrek-logo.png" /><span>TrailTrek <small>STATES &amp; CAPITALS</small></span></div><p>One state at a time. One big map in your mind.</p></footer>
+      <footer><div><img alt="Hungry Alien Worms mascot" src="/assets/hungry-alien-worms-mascot-crop.png" /><span>TrailTrek <small>STATES &amp; CAPITALS</small></span></div><p>One state at a time. One big map in your mind.<br />A learning game by Hungry Alien Worms LLC.</p></footer>
 
       {pendingResult && (
         <div className="result-overlay" role="dialog" aria-modal="true" aria-labelledby="result-title">
@@ -606,9 +607,9 @@ function StarterCard({ stage, onStart }: { stage: TestStage; onStart: () => void
     <div className="starter-card">
       <span className="passport-tag">{isMultiple ? "STAGE 02" : "STAGE 03"}</span>
       <div className="starter-icon">{isMultiple ? <CircleHelp size={27} /> : <PencilLine size={27} />}</div>
-      <h3>{isMultiple ? "Ready for a quick pick?" : "Ready to sprint?"}</h3>
+      <h3>{isMultiple ? "Hungry for a quick pick?" : "Ready to sprint?"}</h3>
       <p>{isMultiple ? "Pick the right capital from four choices. You will answer 20 questions." : "Type the state that matches each capital. You will answer 20 questions."}</p>
-      <div className="starter-rule"><Star size={16} fill="currentColor" /> Every correct answer earns one trail star.</div>
+      <div className="starter-rule"><Star size={16} fill="currentColor" /> Every correct answer earns one shiny trail star.</div>
       <button className="btn-primary" onClick={onStart} type="button">Start 20 questions <ArrowRight size={18} /></button>
     </div>
   );
