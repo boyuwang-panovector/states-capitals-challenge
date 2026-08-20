@@ -30,3 +30,11 @@ Before public DNS is changed, verify the static site through a controlled stagin
 | Staging endpoint | Pending deployment preparation. |
 | Production record | Pending owner review and explicit approval. |
 | Rollback target | Previous immutable static release. |
+
+## Deployment Record — 2026-08-20
+
+TrailTrek’s static artifact from source commit `69b8cf9` was deployed to the isolated release path `/var/www/learnusmap.captainflow.ai/releases/69b8cf9`. The release archive SHA-256 is `cee9be068767bde04dadbbd9badba69c1f30ad9b05015e87aab176c3d435c45b`; the `current` symlink points to this release. The public hostname is `https://learnusmap.captainflow.ai`; Namecheap supplies an `A` record for `learnusmap` that points to `3.130.204.161`.
+
+Let’s Encrypt TLS is active, HTTP redirects to HTTPS, and the certificate expires on 2026-11-18. The deployment uses the dedicated Nginx configuration `/etc/nginx/conf.d/learnusmap.captainflow.ai.conf` and a public-safe HTTP staging configuration committed as `2f78594`. Existing applications, services, ports, databases, and release directories were not modified.
+
+To roll back this first release, remove the `learnusmap` DNS record if public service must be withdrawn, remove the dedicated Nginx configuration, reload Nginx, and remove `/var/www/learnusmap.captainflow.ai`. No legacy TrailTrek site existed before this release.
