@@ -38,3 +38,9 @@ TrailTrek’s static artifact from source commit `69b8cf9` was deployed to the i
 Let’s Encrypt TLS is active, HTTP redirects to HTTPS, and the certificate expires on 2026-11-18. The deployment uses the dedicated Nginx configuration `/etc/nginx/conf.d/learnusmap.captainflow.ai.conf` and a public-safe HTTP staging configuration committed as `2f78594`. Existing applications, services, ports, databases, and release directories were not modified.
 
 To roll back this first release, remove the `learnusmap` DNS record if public service must be withdrawn, remove the dedicated Nginx configuration, reload Nginx, and remove `/var/www/learnusmap.captainflow.ai`. No legacy TrailTrek site existed before this release.
+
+## Enhancement Release — Accurate Map and Learning Audio
+
+The current release is source commit `9baa331`, deployed atomically from GitHub release `v2026.08.20-map-audio` to `/var/www/learnusmap.captainflow.ai/releases/9baa331/public`. Archive SHA-256: `6b1fcec20bc63102135ad41056b02b565a940432fd1d67c5651fadcacbbc8cfe`.
+
+This release replaces the schematic pin layout with the included geographic U.S. state map and uses a deliberate opt-in Web Audio implementation for interactions, answer feedback, and one low-volume background loop. Sound must remain off by default until a learner clicks the sound control. Verification passed for the HTTPS home page and `/maps/us-states.json`; both returned HTTP 200 after the atomic switch. Roll back by repointing the `current` symlink to release `69b8cf9` and reloading Nginx.
