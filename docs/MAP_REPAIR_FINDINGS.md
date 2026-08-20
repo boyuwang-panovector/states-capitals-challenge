@@ -11,3 +11,5 @@ The local production preview now renders all 50 Census-derived state shapes and 
 ## Final renderer replacement
 
 The geography-package renderer left state `<path>` elements empty under this project’s build. The final implementation renders topology features with D3 `geoPath(geoAlbersUsa())` directly into SVG paths. This produced visible, clickable state geometry and a verified Texas selection in the production preview.
+
+The repaired public site was also checked after deployment: the browser exposed all 50 state shapes as interactive paths, while the local click test selected Texas and updated the panel to Austin, The Alamo, its photo credit, and linked facts.

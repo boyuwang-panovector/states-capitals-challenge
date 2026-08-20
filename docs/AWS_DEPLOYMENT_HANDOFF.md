@@ -44,3 +44,9 @@ To roll back this first release, remove the `learnusmap` DNS record if public se
 The current release is source commit `9baa331`, deployed atomically from GitHub release `v2026.08.20-map-audio` to `/var/www/learnusmap.captainflow.ai/releases/9baa331/public`. Archive SHA-256: `6b1fcec20bc63102135ad41056b02b565a940432fd1d67c5651fadcacbbc8cfe`.
 
 This release replaces the schematic pin layout with the included geographic U.S. state map and uses a deliberate opt-in Web Audio implementation for interactions, answer feedback, and one low-volume background loop. Sound must remain off by default until a learner clicks the sound control. Verification passed for the HTTPS home page and `/maps/us-states.json`; both returned HTTP 200 after the atomic switch. Roll back by repointing the `current` symlink to release `69b8cf9` and reloading Nginx.
+
+## Atlas Repair Release — 2026-08-20
+
+Source commit `f57184f` replaces the earlier map renderer with direct D3 SVG paths built from the Census-derived `us-atlas` topology. It adds capital markers from xFront coordinates and a 50-state discovery dataset with landmark imagery, photo credits, fact sources, and history notes. GitHub release `v2026.08.20-atlas-repair` archive SHA-256: `451c03511f5c398906d0f4181dc6a8e44c373504a748930b8bceb687205a344d`.
+
+The release was first installed with `current` pointing to the `public` directory, which conflicted with the Nginx root of `/current/public` and caused an HTTP 500. The incident was corrected immediately by pointing `current` to `/var/www/learnusmap.captainflow.ai/releases/f57184f`. Secure local checks for the homepage and `/maps/us-states-10m.json` passed before Nginx reload; the public site then loaded the 50 interactive state paths.
